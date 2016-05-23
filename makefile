@@ -19,23 +19,25 @@ lib_out =
 
 CC = gcc
 CXX = g++
-CFLAGS = -m64 -DLUA_USE_POSIX
+CFLAGS = -m64 -DLUA_USE_POSIX 
 CXXFLAGS = $(CFLAGS) -Wno-invalid-offsetof -Wno-deprecated-declarations -std=c++1y
+# need glibc-static, libstdc++-static
+link_flags = -static
 
 #----------------- 下面部分通常不用改 --------------------------
 
 ifeq ($(target_type), execute)
 linker = g++
-link_flags = -Wl,-rpath ./
+link_flags += -Wl,-rpath ./
 endif
 
 ifeq ($(target_type), dynamic_shared)
-link_flags = -shared -ldl -fPIC -lpthread
+link_flags += -shared -ldl -fPIC -lpthread
 after_link = cp -f $@ $(target_dir)
 endif
 
 ifeq ($(target_type), static_shared)
-link_flags =
+link_flags +=
 endif
 
 ifeq ($(target_type), execute)
