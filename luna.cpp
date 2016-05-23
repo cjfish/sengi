@@ -9,23 +9,10 @@
 #include <cstdio>
 #include "luna.h"
 
-#define LUA_FILE_ENV_METATABLE  "__file_env_meta__"
-#define LUA_FILE_ENV_PREFIX "__file:"
-#define LUNA_RUNTIME_METATABLE  "__luna_runtime_meta__"
-#define LUNA_RUNTIME_TABLE  "__luna_runtime__"
-
-int Lua_object_bridge(lua_State* L)
-{
-	lua_pushstring(L, LUA_NATIVE_POINTER);
-	lua_rawget(L, lua_upvalueindex(1));
-	void* obj = lua_touserdata(L, -1);
-	lua_object_function* func = (lua_object_function*)lua_touserdata(L, lua_upvalueindex(2));
-	if (obj != nullptr && func != nullptr)
-	{
-		return (*func)(obj, L);
-	}
-	return 0;
-}
+#define LUA_FILE_ENV_METATABLE      "__file_env_meta__"
+#define LUA_FILE_ENV_PREFIX         "__file:"
+#define LUNA_RUNTIME_METATABLE      "__luna_runtime_meta__"
+#define LUNA_RUNTIME_TABLE          "__luna_runtime__"
 
 static char* skip_utf8_bom(char* text, size_t len)
 {
@@ -47,14 +34,7 @@ static bool get_file_time(time_t* mtime, const char file_name[])
 	int ret = stat(file_name, &file_info);
 	if (ret != 0)
 		return false;
-
-#ifdef __APPLE__
-	*mtime = file_info.st_mtimespec.tv_sec;
-#endif
-
-#if defined(_MSC_VER) || defined(__linux)
 	*mtime = file_info.st_mtime;
-#endif
 	return true;
 }
 
@@ -68,7 +48,7 @@ static bool get_file_size(size_t* size, const char file_name[])
 	return true;
 }
 
-static bool read_file_data(char* buffer, size_t size, const char file_name[])
+static bool get_file_data(char* buffer, size_t size, const char file_name[])
 {
 	FILE* file = fopen(file_name, "rb");
 	if (file == nullptr)
@@ -78,15 +58,12 @@ static bool read_file_data(char* buffer, size_t size, const char file_name[])
 	return (rcount == 1);
 }
 
-// runtime中预留了一些回调接口: 错误响应,获取文件时间,大小,数据
 struct luna_runtime_t
 {
 	std::map<std::string, time_t> files;
+	std::map<std::string, lua_function_wrapper*> funcs;
 	std::function<void(const char*)> error_func = [](const char* err) { puts(err); };
-	std::function<bool(time_t*, const char*)> file_time_func = get_file_time;
-	std::function<bool(size_t*, const char*)> file_size_func = get_file_size;
-	std::function<bool(char*, size_t, const char*)> file_data_func = read_file_data;
-	std::map<std::string, lua_global_function*> global_funcs;
+    int stack_top;
 };
 
 static luna_runtime_t* get_luna_runtime(lua_State* L)
@@ -146,7 +123,7 @@ static int luna_runtime_gc(lua_State* L)
 {
 	auto user_data = (luna_runtime_t**)lua_touserdata(L, 1);
 	auto runtime = *user_data;
-	for (auto one : runtime->global_funcs)
+	for (auto one : runtime->funcs)
 	{
 		delete one.second;
 	}
@@ -155,13 +132,19 @@ static int luna_runtime_gc(lua_State* L)
 	return 0;
 }
 
-void lua_setup_env(lua_State* L)
+void lua_setup_env(lua_State* L, std::function<void(const char*)>* error_func)
 {
 	auto runtime = get_luna_runtime(L);
 	if (runtime != nullptr)
 		return;
 
 	runtime = new luna_runtime_t();
+
+    if (error_func)
+    {
+	    runtime->error_func = *error_func;
+    }
+
 	auto user_data = (luna_runtime_t**)lua_newuserdata(L, sizeof(runtime));
 	*user_data = runtime;
 	lua_pushvalue(L, -1);
@@ -183,18 +166,18 @@ void lua_setup_env(lua_State* L)
 	lua_register(L, "import", lua_import);
 }
 
-static int Lua_global_bridge(lua_State* L)
+static int Lua_function_bridge(lua_State* L)
 {
-	lua_global_function* func_ptr = (lua_global_function*)lua_touserdata(L, lua_upvalueindex(1));
+	lua_function_wrapper* func_ptr = (lua_function_wrapper*)lua_touserdata(L, lua_upvalueindex(1));
 	return (*func_ptr)(L);
 }
 
-void lua_register_function(lua_State* L, const char* name, lua_global_function func)
+void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func)
 {
 	auto runtime = get_luna_runtime(L);
-	lua_global_function* func_ptr = nullptr;
-	auto it = runtime->global_funcs.find(name);
-	if (it != runtime->global_funcs.end())
+	lua_function_wrapper* func_ptr = nullptr;
+	auto it = runtime->funcs.find(name);
+	if (it != runtime->funcs.end())
 	{
 		func_ptr = it->second;
 		*func_ptr = func;
@@ -206,10 +189,10 @@ void lua_register_function(lua_State* L, const char* name, lua_global_function f
 		return;
 	}
 
-	func_ptr = new lua_global_function(func);
-	runtime->global_funcs[name] = func_ptr;
+	func_ptr = new lua_function_wrapper(func);
+	runtime->funcs[name] = func_ptr;
 	lua_pushlightuserdata(L, func_ptr);
-	lua_pushcclosure(L, Lua_global_bridge, 1);
+	lua_pushcclosure(L, Lua_function_bridge, 1);
 	lua_setglobal(L, name);
 }
 
@@ -270,17 +253,17 @@ bool lua_load_script(lua_State* L, const char file_name[])
 
 	env_name += file_path;
 
-	if (!runtime->file_time_func(&file_time, file_name))
+	if (!get_file_time(&file_time, file_name))
 		goto exit0;
 
-	if (!runtime->file_size_func(&file_size, file_name))
+	if (!get_file_size(&file_size, file_name))
 		goto exit0;
 
 	buffer = new char[file_size];
 	if (buffer == nullptr)
 		goto exit0;
 
-	if (!runtime->file_data_func(buffer, file_size, file_name))
+	if (!get_file_data(buffer, file_size, file_name))
 		goto exit0;
 
 	code = skip_utf8_bom(buffer, file_size);
@@ -301,7 +284,7 @@ void lua_reload_update(lua_State* L)
 	{
 		const char* file_name = one.first.c_str();
 		time_t new_time = 0;
-		if (runtime->file_time_func(&new_time, file_name))
+		if (get_file_time(&new_time, file_name))
 		{
 			if (new_time != one.second)
 			{
@@ -352,6 +335,12 @@ bool lua_get_table_function(lua_State* L, const char table[], const char functio
 	return true;
 }
 
+void lua_call_prepare(lua_State* L)
+{
+	auto runtime = get_luna_runtime(L);
+    runtime->stack_top = lua_gettop(L);
+}
+
 bool lua_call_function(lua_State* L, int arg_count, int ret_count)
 {
 	int func_idx = lua_gettop(L) - arg_count;
@@ -375,26 +364,10 @@ bool lua_call_function(lua_State* L, int arg_count, int ret_count)
 	return true;
 }
 
-void lua_set_error_func(lua_State* L, std::function<void(const char*)>& error_func)
+void lua_call_cleanup(lua_State* L)
 {
 	auto runtime = get_luna_runtime(L);
-	runtime->error_func = error_func;
+    lua_settop(L, runtime->stack_top);
 }
 
-void lua_set_file_time_func(lua_State* L, std::function<bool(time_t*, const char*)>& time_func)
-{
-	auto runtime = get_luna_runtime(L);
-	runtime->file_time_func = time_func;
-}
 
-void lua_set_file_size_func(lua_State* L, std::function<bool(size_t*, const char*)>& size_func)
-{
-	auto runtime = get_luna_runtime(L);
-	runtime->file_size_func = size_func;
-}
-
-void lua_set_file_data_func(lua_State* L, std::function<bool(char*, size_t, const char*)>& data_func)
-{
-	auto runtime = get_luna_runtime(L);
-	runtime->file_data_func = data_func;
-}
