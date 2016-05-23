@@ -2,7 +2,7 @@ product = test
 # execute, dynamic_shared, static_shared
 target_type = execute
 define_macros =
-include_dir = . ./lua
+include_dir = . ./lua-5.3.2/src
 # 依赖库列表,空格分开
 lib =
 # 编译期临时文件目录
@@ -19,7 +19,7 @@ lib_out =
 
 CC = gcc
 CXX = g++
-CFLAGS = -m64
+CFLAGS = -m64 -DLUA_USE_POSIX
 CXXFLAGS = $(CFLAGS) -Wno-invalid-offsetof -Wno-deprecated-declarations -std=c++1y
 
 #----------------- 下面部分通常不用改 --------------------------
