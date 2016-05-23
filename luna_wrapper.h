@@ -21,8 +21,8 @@ template <> inline const char*  lua_tovalue<const char*>(lua_State* L, int i) { 
 template<size_t... Integers, typename... var_types>
 void lua_tovalue_mutil(lua_State* L, std::tuple<var_types&...>& vars, std::index_sequence<Integers...>&&)
 {
-	constexpr int ret_count = sizeof...(Integers);
-	int _[] = { 0, (std::get<Integers>(vars) = lua_tovalue<var_types>(L, (int)Integers - ret_count), 0)... };
+    constexpr int ret_count = sizeof...(Integers);
+    int _[] = { 0, (std::get<Integers>(vars) = lua_tovalue<var_types>(L, (int)Integers - ret_count), 0)... };
 }
 
 inline void lua_pushvalue(lua_State* L, int32_t v)      { lua_pushinteger(L, v); }
@@ -34,33 +34,33 @@ inline void lua_pushvalue(lua_State* L, const char* v)  { lua_pushstring(L, v); 
 template<size_t... Integers, typename return_type, typename... arg_types>
 return_type call_wrapper(lua_State* L, return_type(*func)(arg_types...), std::index_sequence<Integers...>&&)
 {
-	return (*func)(lua_tovalue<arg_types>(L, Integers + 1)...);
+    return (*func)(lua_tovalue<arg_types>(L, Integers + 1)...);
 }
 
 template <typename return_type, typename... arg_types>
 lua_function_wrapper create_function_wrapper(return_type(*func)(arg_types...))
 {
-	return [=](lua_State* L)
-	{
-		lua_pushvalue(L, call_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>()));
-		return 1;
-	};
+    return [=](lua_State* L)
+    {
+        lua_pushvalue(L, call_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>()));
+        return 1;
+    };
 }
 
 template <typename... arg_types>
 lua_function_wrapper create_function_wrapper(void(*func)(arg_types...))
 {
-	return [=](lua_State* L)
-	{
-		call_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>());
-		return 0;
-	};
+    return [=](lua_State* L)
+    {
+        call_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>());
+        return 0;
+    };
 }
 
 template <>
 inline lua_function_wrapper create_function_wrapper(int(*func)(lua_State* L))
 {
-	return func;
+    return func;
 }
 
 extern bool lua_get_file_function(lua_State* L, const char file_name[], const char function[]);
