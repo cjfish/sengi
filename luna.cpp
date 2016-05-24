@@ -9,8 +9,8 @@
 #include <cstdio>
 #include "luna.h"
 
-#define LUNA_FILE_ENV_METATABLE     "__file_env_meta__"
-#define LUNA_FILE_ENV_PREFIX        "__file:"
+#define LUNA_FILE_ENV_METATABLE     "__luna_file_env_meta__"
+#define LUNA_FILE_ENV_PREFIX        "__luna_file:"
 #define LUNA_RUNTIME_METATABLE      "__luna_runtime_meta__"
 #define LUNA_RUNTIME_TABLE          "__luna_runtime__"
 
@@ -178,7 +178,7 @@ static int Lua_function_bridge(lua_State* L)
     return (*func_ptr)(L);
 }
 
-void lua_register_function_as(lua_State* L, const char* name, lua_function_wrapper func)
+void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func)
 {
     auto runtime = get_luna_runtime(L);
     lua_function_wrapper* func_ptr = nullptr;

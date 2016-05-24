@@ -37,7 +37,6 @@ void lua_push_value_multi(lua_State* L, std::tuple<var_types&...>& vars, std::in
     int _[] = { 0, (lua_push_value(L, std::get<Integers>(vars)))... };
 }
 
-
 template<size_t... Integers, typename return_type, typename... arg_types>
 return_type call_wrapper(lua_State* L, return_type(*func)(arg_types...), std::index_sequence<Integers...>&&)
 {
@@ -70,15 +69,15 @@ inline lua_function_wrapper create_function_wrapper(int(*func)(lua_State* L))
     return func;
 }
 
-extern void lua_register_function_as(lua_State* L, const char* name, lua_function_wrapper func);
+extern void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func);
 extern bool lua_get_file_function(lua_State* L, const char file_name[], const char function[]);
 extern bool lua_get_table_function(lua_State* L, const char table[], const char function[]);
 extern bool lua_call_function(lua_State* L, int arg_count, int ret_count);
 
 template <typename T> 
-void lua_register_function_as(lua_State* L, const char* name, T func)
+void lua_register_function(lua_State* L, const char* name, T func)
 {
-    lua_register_function_as(L, name, create_function_wrapper(func));
+    lua_register_function(L, name, create_function_wrapper(func));
 }
 
 template <typename... ret_types, typename... arg_types>

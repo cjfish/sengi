@@ -14,8 +14,7 @@ int sum(int a, int b)
 int main(int argc, char* argv[])
 {
 	lua_State* L = lua_open();
-
-	lua_register_function(L, sum);
+	lua_export(L, sum);
 
     int a, b, sum;
     lua_call_file_function(L, "test.lua", "test_sum", ret_group(a, b, sum), arg_group(2, 4));

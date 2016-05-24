@@ -19,7 +19,7 @@
  *      lua_export(L, sum);
  *
  *      int a, b, sum;
- *      lua_call(L, "test.lua", "test_sum", ret_group(a, b, sum), arg_group(3, 4));
+ *      lua_call_file_function(L, "test.lua", "test_sum", ret_group(a, b, sum), arg_group(3, 4));
  *      printf("%d + %d = %d\n", a, b, sum);
  *
  *      lua_close(L);
@@ -41,7 +41,7 @@
 lua_State* lua_open(std::function<void(const char*)>* error_func = nullptr);
 
 /* Export C function to lua */
-#define lua_register_function(L, func)    lua_register_function_as(L, #func, func)
+#define lua_export(L, func)    lua_register_function(L, #func, func)
 
 /* Load and reload lua script */
 bool lua_load_script(lua_State* L, const char file_name[]);
