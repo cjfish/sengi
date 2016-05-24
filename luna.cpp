@@ -19,7 +19,6 @@ struct luna_runtime_t
     std::map<std::string, time_t> files;
     std::map<std::string, lua_function_wrapper*> funcs;
     std::function<void(const char*)> error_func = [](const char* err) { puts(err); };
-    int stack_top;
 };
 
 static char* skip_utf8_bom(char* text, size_t len)
@@ -132,11 +131,16 @@ static int luna_runtime_gc(lua_State* L)
     return 0;
 }
 
-void lua_setup_env(lua_State* L, std::function<void(const char*)>* error_func)
+lua_State* lua_open(std::function<void(const char*)>* error_func)
 {
+	lua_State* L = luaL_newstate();
+	luaL_openlibs(L);
+
     auto runtime = get_luna_runtime(L);
     if (runtime != nullptr)
-        return;
+    {
+        return L;
+    }
 
     runtime = new luna_runtime_t();
 
@@ -164,6 +168,8 @@ void lua_setup_env(lua_State* L, std::function<void(const char*)>* error_func)
     lua_pop(L, 1);
 
     lua_register(L, "import", lua_import);
+
+    return L;
 }
 
 static int Lua_function_bridge(lua_State* L)
@@ -335,12 +341,6 @@ bool lua_get_table_function(lua_State* L, const char table[], const char functio
     return true;
 }
 
-void lua_call_prepare(lua_State* L)
-{
-    auto runtime = get_luna_runtime(L);
-    runtime->stack_top = lua_gettop(L);
-}
-
 bool lua_call_function(lua_State* L, int arg_count, int ret_count)
 {
     int func_idx = lua_gettop(L) - arg_count;
@@ -362,11 +362,5 @@ bool lua_call_function(lua_State* L, int arg_count, int ret_count)
     }
     lua_remove(L, -ret_count - 1); // remove 'traceback'
     return true;
-}
-
-void lua_call_cleanup(lua_State* L)
-{
-    auto runtime = get_luna_runtime(L);
-    lua_settop(L, runtime->stack_top);
 }
 
