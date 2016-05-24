@@ -21,8 +21,7 @@ CC = gcc
 CXX = g++
 CFLAGS = -m64 -DLUA_USE_POSIX 
 CXXFLAGS = $(CFLAGS) -Wno-invalid-offsetof -Wno-deprecated-declarations -std=c++1y
-# need glibc-static, libstdc++-static
-link_flags = -static
+link_flags = -static-libstdc++ -L$(dir $(shell g++ -print-file-name=libstdc++.a))
 
 #----------------- 下面部分通常不用改 --------------------------
 
@@ -125,6 +124,7 @@ build_prompt:
 
 $(target): $(my_obj_list)
 	@echo link "-->" $@
+	@echo $(link)
 	@$(link)
 	$(after_link)
 
