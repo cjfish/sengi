@@ -1,25 +1,55 @@
-﻿#pragma once
+﻿
+/*
+ * Author: trumanzhao(https://github.com/trumanzhao/luna)
+ * Modified: brianzhang
+ *
+ * Example:
+ *
+ * --- test.c
+ * #include "luna.h"
+ *
+ * int sum(int a, int b)
+ * {
+ *      return a + b;
+ * }
+ *
+ * int main(int argc, char** argv)
+ * {
+ *      lua_State* L = lua_open();
+ *      lua_export(L, sum);
+ *
+ *      int a, b, sum;
+ *      lua_call(L, "test.lua", "test_sum", ret_group(a, b, sum), arg_group(3, 4));
+ *      printf("%d + %d = %d\n", a, b, sum);
+ *
+ *      lua_close(L);
+ *      return 0;
+ * }
+ *
+ * --- test.lua
+ * function test_sum(a, b)
+ *      return a, b, sum(a, b);
+ * end
+ *
+*/
+
+#pragma once
 
 #include "luna_wrapper.h"
 
-/* Setup runtime environment */
+/* Create lua VM */
 lua_State* lua_open(std::function<void(const char*)>* error_func = nullptr);
 
-/* Load and reload lua script */
-bool lua_load_string(lua_State* L, const char env[], const char code[], int code_len = -1);
-bool lua_load_script(lua_State* L, const char file_name[]);
-void lua_reload_update(lua_State* L);
+/* Export C function to lua */
+#define lua_register_function(L, func)    lua_register_function_as(L, #func, func)
 
-/* Export C function to lua script */
-template <typename T> 
-void lua_register_function(lua_State* L, const char* name, T func)
-{
-    lua_register_function(L, name, create_function_wrapper(func));
-}
+/* Load and reload lua script */
+bool lua_load_script(lua_State* L, const char file_name[]);
+void lua_reload_scripts(lua_State* L);
 
 /* Call lua script function */
-#define arg_group   std::tie
 #define ret_group   std::tie
+#define arg_group   std::forward_as_tuple
 
 template <typename... ret_types, typename... arg_types>
 bool lua_call_file_function(lua_State* L, const char file_name[], const char function[], 
@@ -57,7 +87,7 @@ bool lua_call_global_function(lua_State* L, const char function[],
     return lua_call_function(L, rets, args);
 }
 
-inline bool lua_call_file_function(lua_State* L, const char file_name[], const char function[]) { return lua_call_file_function(L, file_name, function, ret_group(), arg_group()); }
-inline bool lua_call_table_function(lua_State* L, const char table[], const char function[]) { return lua_call_table_function(L, table, function, ret_group(), arg_group()); }
-inline bool lua_call_global_function(lua_State* L, const char function[]) { return lua_call_global_function(L, function, ret_group(), arg_group()); }
+inline bool lua_call_file_function(lua_State* L, const char file_name[], const char function[]) {return lua_call_file_function(L, file_name, function, ret_group(), arg_group());}
+inline bool lua_call_table_function(lua_State* L, const char table[], const char function[]) {return lua_call_table_function(L, table, function, ret_group(), arg_group());}
+inline bool lua_call_global_function(lua_State* L, const char function[]) {return lua_call_global_function(L, function, ret_group(), arg_group());}
 

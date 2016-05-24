@@ -9,8 +9,8 @@
 #include <cstdio>
 #include "luna.h"
 
-#define LUA_FILE_ENV_METATABLE      "__file_env_meta__"
-#define LUA_FILE_ENV_PREFIX         "__file:"
+#define LUNA_FILE_ENV_METATABLE     "__file_env_meta__"
+#define LUNA_FILE_ENV_PREFIX        "__file:"
 #define LUNA_RUNTIME_METATABLE      "__luna_runtime_meta__"
 #define LUNA_RUNTIME_TABLE          "__luna_runtime__"
 
@@ -97,7 +97,7 @@ static int lua_import(lua_State* L)
 {
     int top = lua_gettop(L);
     const char* file_name = nullptr;
-    std::string env_name = LUA_FILE_ENV_PREFIX;
+    std::string env_name = LUNA_FILE_ENV_PREFIX;
 
     if (top != 1 || !lua_isstring(L, 1))
     {
@@ -161,7 +161,7 @@ lua_State* lua_open(std::function<void(const char*)>* error_func)
     lua_setmetatable(L, -2);
     lua_pop(L, 1);
 
-    luaL_newmetatable(L, LUA_FILE_ENV_METATABLE);
+    luaL_newmetatable(L, LUNA_FILE_ENV_METATABLE);
     lua_pushstring(L, "__index");
     lua_pushcfunction(L, file_env_index);
     lua_settable(L, -3);
@@ -178,7 +178,7 @@ static int Lua_function_bridge(lua_State* L)
     return (*func_ptr)(L);
 }
 
-void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func)
+void lua_register_function_as(lua_State* L, const char* name, lua_function_wrapper func)
 {
     auto runtime = get_luna_runtime(L);
     lua_function_wrapper* func_ptr = nullptr;
@@ -202,7 +202,7 @@ void lua_register_function(lua_State* L, const char* name, lua_function_wrapper 
     lua_setglobal(L, name);
 }
 
-bool lua_load_string(lua_State* L, const char env[], const char code[], int code_len)
+bool lua_load_script_string(lua_State* L, const char env[], const char code[], int code_len)
 {
     bool result = false;
     int top = lua_gettop(L);
@@ -226,7 +226,7 @@ bool lua_load_string(lua_State* L, const char env[], const char code[], int code
         // file env table
         lua_newtable(L);
 
-        luaL_getmetatable(L, LUA_FILE_ENV_METATABLE);
+        luaL_getmetatable(L, LUNA_FILE_ENV_METATABLE);
         lua_setmetatable(L, -2);
 
         lua_pushvalue(L, -1);
@@ -251,7 +251,7 @@ bool lua_load_script(lua_State* L, const char file_name[])
     bool result = false;
     auto runtime = get_luna_runtime(L);
     std::string file_path = regularize_path(file_name);
-    std::string env_name = LUA_FILE_ENV_PREFIX;
+    std::string env_name = LUNA_FILE_ENV_PREFIX;
     time_t file_time = 0;
     size_t file_size = 0;
     char* buffer = nullptr;
@@ -273,7 +273,7 @@ bool lua_load_script(lua_State* L, const char file_name[])
         goto exit0;
 
     code = skip_utf8_bom(buffer, file_size);
-    if (lua_load_string(L, env_name.c_str(), code, (int)(buffer + file_size - code)))
+    if (lua_load_script_string(L, env_name.c_str(), code, (int)(buffer + file_size - code)))
     {
         runtime->files[file_path] = file_time;
         result = true;
@@ -283,7 +283,7 @@ exit0:
     return result;
 }
 
-void lua_reload_update(lua_State* L)
+void lua_reload_scripts(lua_State* L)
 {
     auto runtime = get_luna_runtime(L);
     for (auto& one : runtime->files)
@@ -304,7 +304,7 @@ bool lua_get_file_function(lua_State* L, const char file_name[], const char func
 {
     bool result = false;
     int top = lua_gettop(L);
-    std::string env_name = LUA_FILE_ENV_PREFIX;
+    std::string env_name = LUNA_FILE_ENV_PREFIX;
 
     env_name += regularize_path(file_name);
     lua_getglobal(L, env_name.c_str());

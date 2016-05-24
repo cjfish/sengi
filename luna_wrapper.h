@@ -17,6 +17,7 @@ template <> inline int32_t      lua_to_value<int32_t>(lua_State* L, int i)   { r
 template <> inline int64_t      lua_to_value<int64_t>(lua_State* L, int i)   { return (int64_t)lua_tointeger(L, i); }
 template <> inline float        lua_to_value<float>(lua_State* L, int i)     { return (float)lua_tonumber(L, i); }
 template <> inline double       lua_to_value<double>(lua_State* L, int i)    { return (double)lua_tonumber(L, i); }
+template <> inline char*        lua_to_value<char*>(lua_State* L, int i)     { return (char*)lua_tostring(L, i); }
 template <> inline const char*  lua_to_value<const char*>(lua_State* L, int i) { return lua_tostring(L, i); }
 template<size_t... Integers, typename... var_types>
 void lua_to_value_multi(lua_State* L, std::tuple<var_types&...>& vars, std::index_sequence<Integers...>&&)
@@ -33,7 +34,6 @@ inline int lua_push_value(lua_State* L, const char* v)  { lua_pushstring(L, v); 
 template<size_t... Integers, typename... var_types>
 void lua_push_value_multi(lua_State* L, std::tuple<var_types&...>& vars, std::index_sequence<Integers...>&&)
 {
-    constexpr int ret_count = sizeof...(Integers);
     int _[] = { 0, (lua_push_value(L, std::get<Integers>(vars)))... };
 }
 
@@ -70,10 +70,16 @@ inline lua_function_wrapper create_function_wrapper(int(*func)(lua_State* L))
     return func;
 }
 
-extern void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func);
+extern void lua_register_function_as(lua_State* L, const char* name, lua_function_wrapper func);
 extern bool lua_get_file_function(lua_State* L, const char file_name[], const char function[]);
 extern bool lua_get_table_function(lua_State* L, const char table[], const char function[]);
 extern bool lua_call_function(lua_State* L, int arg_count, int ret_count);
+
+template <typename T> 
+void lua_register_function_as(lua_State* L, const char* name, T func)
+{
+    lua_register_function_as(L, name, create_function_wrapper(func));
+}
 
 template <typename... ret_types, typename... arg_types>
 bool lua_call_function(lua_State* L, std::tuple<ret_types&...>& rets, std::tuple<arg_types&...>& args)

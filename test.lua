@@ -1,8 +1,5 @@
 
-function some_func(a, b)
-    local s = a..b;
-    fuck_a();
-    fuck_b();
-    return a, #a;
+function test_sum(a, b)
+    return a, b, sum(a, b);
 end
 
