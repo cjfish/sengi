@@ -27,6 +27,14 @@
  * }
  *
  * --- test.lua
+ * function onload()
+ *      print(__FILE__ .. " loaded");
+ * end
+ *
+ * function onreload()
+ *      print(__FILE__ .. " reloaded");
+ * end
+ *
  * function test_sum(a, b)
  *      return a, b, sum(a, b);
  * end

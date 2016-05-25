@@ -1,13 +1,12 @@
-
 function onload()
-    print("test.lua on loaded!");
+    print(__FILE__ .." on loaded!");
 
     g_Data = {};
     g_Data["test_sum"] = 0;
 end
 
 function onreload()
-    print("test.lua on reloaded!");
+    print(__FILE__ .." on reloaded!");
     print(g_Data["test_sum"]);
 end
 
@@ -31,7 +30,7 @@ end
 function test_sum(a, b)
     g_Data["test_sum"] = g_Data["test_sum"] + 1;
 
-    printTableItem("_G", _G, 0)
+    -- printTableItem("_G", _G, 0)
     return a, b, sum(a, b);
 end
 

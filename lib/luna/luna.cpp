@@ -195,24 +195,27 @@ void lua_register_cfunction(lua_State* L, const char* name, lua_cfunction_wrappe
     lua_setglobal(L, name);
 }
 
-static bool lua_load_script_string(lua_State* L, const char env[], const char code[], int code_len)
+static bool lua_load_script_string(lua_State* L, const char file_name[], const char code[], int code_len)
 {
     bool reload = true;
     bool result = false;
     int top = lua_gettop(L);
+
+    std::string env = LUNA_FILE_ENV_PREFIX;
+    env += file_name;
 
     if (code_len == -1)
     {
         code_len = (int)strlen(code);
     }
 
-    if (luaL_loadbuffer(L, code, code_len, env))
+    if (luaL_loadbuffer(L, code, code_len, env.c_str()))
     {
         print_error(L, lua_tostring(L, -1));
         goto exit0;
     }
 
-    lua_getglobal(L, env);
+    lua_getglobal(L, env.c_str());
     if (!lua_istable(L, -1))
     {
         lua_pop(L, 1);
@@ -224,7 +227,7 @@ static bool lua_load_script_string(lua_State* L, const char env[], const char co
         lua_setmetatable(L, -2);
 
         lua_pushvalue(L, -1);
-        lua_setglobal(L, env);
+        lua_setglobal(L, env.c_str());
 
         reload = false;
     }
@@ -236,11 +239,19 @@ static bool lua_load_script_string(lua_State* L, const char env[], const char co
         goto exit0;
     }
 
+    /* set __FILE__ variable */
+    lua_getglobal(L, env.c_str());
+    lua_pushstring(L, "__FILE__");
+    lua_pushstring(L, file_name);
+    lua_settable(L, -3);
+    lua_pop(L, 1);
+
     /* call onload hook */
-    if (lua_get_table_function(L, env, ({reload? "onreload":"onload";})))
+    if (lua_get_table_function(L, env.c_str(), ({reload? "onreload":"onload";})))
     {
         lua_call_function(L, 0, 0);
     }
+    
     
     result = true;
 exit0:
@@ -252,14 +263,10 @@ bool lua_load_script(lua_State* L, const char file_name[])
 {
     bool result = false;
     auto runtime = get_luna_runtime(L);
-    std::string file_path = file_name;
-    std::string env_name = LUNA_FILE_ENV_PREFIX;
     time_t file_time = 0;
     size_t file_size = 0;
     char* buffer = nullptr;
     char* code = nullptr;
-
-    env_name += file_path;
 
     if (!get_file_time(&file_time, file_name))
         goto exit0;
@@ -275,9 +282,9 @@ bool lua_load_script(lua_State* L, const char file_name[])
         goto exit0;
 
     code = skip_utf8_bom(buffer, file_size);
-    if (lua_load_script_string(L, env_name.c_str(), code, (int)(buffer + file_size - code)))
+    if (lua_load_script_string(L, file_name, code, (int)(buffer + file_size - code)))
     {
-        runtime->files[file_path] = file_time;
+        runtime->files[file_name] = file_time;
         result = true;
     }
 exit0:
