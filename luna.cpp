@@ -197,6 +197,7 @@ void lua_register_cfunction(lua_State* L, const char* name, lua_cfunction_wrappe
 
 static bool lua_load_script_string(lua_State* L, const char env[], const char code[], int code_len)
 {
+    bool reload = true;
     bool result = false;
     int top = lua_gettop(L);
 
@@ -224,6 +225,8 @@ static bool lua_load_script_string(lua_State* L, const char env[], const char co
 
         lua_pushvalue(L, -1);
         lua_setglobal(L, env);
+
+        reload = false;
     }
     lua_setupvalue(L, -2, 1);
 
@@ -233,6 +236,12 @@ static bool lua_load_script_string(lua_State* L, const char env[], const char co
         goto exit0;
     }
 
+    /* call onload hook */
+    if (lua_get_table_function(L, env, ({reload? "onreload":"onload";})))
+    {
+        lua_call_function(L, 0, 0);
+    }
+    
     result = true;
 exit0:
     lua_settop(L, top);

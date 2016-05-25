@@ -1,6 +1,17 @@
 
-local tablePrinted = {}
+function onload()
+    print("test.lua on loaded!");
 
+    g_Data = {};
+    g_Data["test_sum"] = 0;
+end
+
+function onreload()
+    print("test.lua on reloaded!");
+    print(g_Data["test_sum"]);
+end
+
+local tablePrinted = {}
 function printTableItem(k, v, level)
     for i = 1, level do
         io.write("    ")
@@ -18,9 +29,9 @@ function printTableItem(k, v, level)
 end
 
 function test_sum(a, b)
-      
-    printTableItem("_G", _G, 0)
+    g_Data["test_sum"] = g_Data["test_sum"] + 1;
 
+    printTableItem("_G", _G, 0)
     return a, b, sum(a, b);
 end
 

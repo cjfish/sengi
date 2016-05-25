@@ -21,6 +21,11 @@ int main(int argc, char* argv[])
 
     printf("%d + %d = %d\n", a, b, sum);
 
+    lua_load_script(L, "test.lua");
+
+    lua_call_file_function(L, "test.lua", "test_sum", ret_group(a, b, sum), arg_group(2, 4));
+    lua_load_script(L, "test.lua");
+
 	lua_close(L);
 	return 0;
 }
