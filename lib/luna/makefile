@@ -1,27 +1,24 @@
-product = test
+product = luna
 # execute, dynamic_shared, static_shared
-target_type = execute
-define_macros =
-include_dir = . ./lua-5.3.2/src
-# 依赖库列表,空格分开
-lib =
-# 编译期临时文件目录
-build_dir = ./build
-# 最终产品目录:
-# 注意,只是对可执行文件和动态库而言,静态库忽略此项
-target_dir = .
-#src_root = ../src
+target_type = static_shared
 src_root = .
-# 依赖库目录,多个目录用空格分开:
-lib_dir =
+define_macros =
+include_dir = ../luna/lua-5.3.2/src
+lib = 
+lib_dir = 
+build_dir = ./build
+
+# 最终产品目录:
+# 注意,只是对可执行文件而言,静态库和动态库忽略此项
+target_dir = .
 # 本工程(如果)输出.a,.so文件的目录
-lib_out =
+lib_out = .
 
 CC = gcc
 CXX = g++
 CFLAGS = -m64 -DLUA_USE_POSIX 
 CXXFLAGS = $(CFLAGS) -Wno-invalid-offsetof -Wno-deprecated-declarations -std=c++1y
-link_flags = -static-libstdc++ -L$(dir $(shell g++ -print-file-name=libstdc++.a))
+
 
 #----------------- 下面部分通常不用改 --------------------------
 
@@ -110,7 +107,7 @@ release: build_prompt $(target)
 .PHONY: clean
 clean:
 	rm -f $(target)
-	rm -rf $(build_dir)/$(product)
+	rm -rf $(build_dir)
 
 .PHONY: build_prompt
 build_prompt:
