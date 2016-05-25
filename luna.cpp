@@ -17,7 +17,7 @@
 struct luna_runtime_t
 {
     std::map<std::string, time_t> files;
-    std::map<std::string, lua_function_wrapper*> funcs;
+    std::map<std::string, lua_cfunction_wrapper*> funcs;
     std::function<void(const char*)> error_func = [](const char* err) { puts(err); };
 };
 
@@ -26,13 +26,6 @@ static char* skip_utf8_bom(char* text, size_t len)
     if (len >= 3 && text[0] == (char)0xEF && text[1] == (char)0xBB && text[2] == (char)0xBF)
         return text + 3;
     return text;
-}
-
-static std::string regularize_path(const char path[])
-{
-    std::string str_path = path;
-    std::replace(str_path.begin(), str_path.end(), '\\', '/');
-    return str_path;
 }
 
 static bool get_file_time(time_t* mtime, const char file_name[])
@@ -106,7 +99,7 @@ static int lua_import(lua_State* L)
     }
 
     file_name = lua_tostring(L, 1);
-    env_name += regularize_path(file_name);
+    env_name += file_name;
 
     lua_getglobal(L, env_name.c_str());
     if (!lua_istable(L, -1))
@@ -172,16 +165,16 @@ lua_State* lua_open(std::function<void(const char*)>* error_func)
     return L;
 }
 
-static int Lua_function_bridge(lua_State* L)
+static int Lua_run_cfunction_wrapper(lua_State* L)
 {
-    lua_function_wrapper* func_ptr = (lua_function_wrapper*)lua_touserdata(L, lua_upvalueindex(1));
+    lua_cfunction_wrapper* func_ptr = (lua_cfunction_wrapper*)lua_touserdata(L, lua_upvalueindex(1));
     return (*func_ptr)(L);
 }
 
-void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func)
+void lua_register_cfunction(lua_State* L, const char* name, lua_cfunction_wrapper func)
 {
     auto runtime = get_luna_runtime(L);
-    lua_function_wrapper* func_ptr = nullptr;
+    lua_cfunction_wrapper* func_ptr = nullptr;
     auto it = runtime->funcs.find(name);
     if (it != runtime->funcs.end())
     {
@@ -195,14 +188,14 @@ void lua_register_function(lua_State* L, const char* name, lua_function_wrapper 
         return;
     }
 
-    func_ptr = new lua_function_wrapper(func);
+    func_ptr = new lua_cfunction_wrapper(func);
     runtime->funcs[name] = func_ptr;
     lua_pushlightuserdata(L, func_ptr);
-    lua_pushcclosure(L, Lua_function_bridge, 1);
+    lua_pushcclosure(L, Lua_run_cfunction_wrapper, 1);
     lua_setglobal(L, name);
 }
 
-bool lua_load_script_string(lua_State* L, const char env[], const char code[], int code_len)
+static bool lua_load_script_string(lua_State* L, const char env[], const char code[], int code_len)
 {
     bool result = false;
     int top = lua_gettop(L);
@@ -250,7 +243,7 @@ bool lua_load_script(lua_State* L, const char file_name[])
 {
     bool result = false;
     auto runtime = get_luna_runtime(L);
-    std::string file_path = regularize_path(file_name);
+    std::string file_path = file_name;
     std::string env_name = LUNA_FILE_ENV_PREFIX;
     time_t file_time = 0;
     size_t file_size = 0;
@@ -306,7 +299,7 @@ bool lua_get_file_function(lua_State* L, const char file_name[], const char func
     int top = lua_gettop(L);
     std::string env_name = LUNA_FILE_ENV_PREFIX;
 
-    env_name += regularize_path(file_name);
+    env_name += file_name;
     lua_getglobal(L, env_name.c_str());
 
     if (!lua_istable(L, -1))

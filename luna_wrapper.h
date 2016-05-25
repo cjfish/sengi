@@ -10,7 +10,7 @@
 #include <utility>
 #include "lua.hpp"
 
-typedef std::function<int(lua_State* L)> lua_function_wrapper;
+typedef std::function<int(lua_State* L)> lua_cfunction_wrapper;
 
 template <typename T> T         lua_to_value(lua_State* L, int i)            {return T(0);}
 template <> inline int32_t      lua_to_value<int32_t>(lua_State* L, int i)   { return (int32_t)lua_tointeger(L, i); }
@@ -38,46 +38,46 @@ void lua_push_value_multi(lua_State* L, std::tuple<var_types&...>& vars, std::in
 }
 
 template<size_t... Integers, typename return_type, typename... arg_types>
-return_type call_wrapper(lua_State* L, return_type(*func)(arg_types...), std::index_sequence<Integers...>&&)
+return_type call_cfunction_wrapper(lua_State* L, return_type(*func)(arg_types...), std::index_sequence<Integers...>&&)
 {
     return (*func)(lua_to_value<arg_types>(L, Integers + 1)...);
 }
 
 template <typename return_type, typename... arg_types>
-lua_function_wrapper create_function_wrapper(return_type(*func)(arg_types...))
+lua_cfunction_wrapper create_cfunction_wrapper(return_type(*func)(arg_types...))
 {
     return [=](lua_State* L)
     {
-        lua_push_value(L, call_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>()));
+        lua_push_value(L, call_cfunction_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>()));
         return 1;
     };
 }
 
 template <typename... arg_types>
-lua_function_wrapper create_function_wrapper(void(*func)(arg_types...))
+lua_cfunction_wrapper create_cfunction_wrapper(void(*func)(arg_types...))
 {
     return [=](lua_State* L)
     {
-        call_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>());
+        call_cfunction_wrapper(L, func, std::make_index_sequence<sizeof...(arg_types)>());
         return 0;
     };
 }
 
 template <>
-inline lua_function_wrapper create_function_wrapper(int(*func)(lua_State* L))
+inline lua_cfunction_wrapper create_cfunction_wrapper(int(*func)(lua_State* L))
 {
     return func;
 }
 
-extern void lua_register_function(lua_State* L, const char* name, lua_function_wrapper func);
+extern void lua_register_cfunction(lua_State* L, const char* name, lua_cfunction_wrapper func);
 extern bool lua_get_file_function(lua_State* L, const char file_name[], const char function[]);
 extern bool lua_get_table_function(lua_State* L, const char table[], const char function[]);
 extern bool lua_call_function(lua_State* L, int arg_count, int ret_count);
 
 template <typename T> 
-void lua_register_function(lua_State* L, const char* name, T func)
+void lua_register_cfunction(lua_State* L, const char* name, T func)
 {
-    lua_register_function(L, name, create_function_wrapper(func));
+    lua_register_cfunction(L, name, create_cfunction_wrapper(func));
 }
 
 template <typename... ret_types, typename... arg_types>

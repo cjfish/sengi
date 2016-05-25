@@ -41,7 +41,7 @@
 lua_State* lua_open(std::function<void(const char*)>* error_func = nullptr);
 
 /* Export C function to lua */
-#define lua_export(L, func)    lua_register_function(L, #func, func)
+#define lua_export(L, func)    lua_register_cfunction(L, #func, func)
 
 /* Load and reload lua script */
 bool lua_load_script(lua_State* L, const char file_name[]);
